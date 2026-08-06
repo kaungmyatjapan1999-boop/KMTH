@@ -26,12 +26,12 @@ jobs:
       - name: Set up Go Environment
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
 
       - name: Install Gomobile Tools
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20231127183840-76ac9e78a523
-          go install golang.org/x/mobile/cmd/gobind@v0.0.0-20231127183840-76ac9e78a523
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          go install golang.org/x/mobile/cmd/gobind@latest
           gomobile init
 
       - name: Clone Xray-core Source Code
@@ -42,6 +42,8 @@ jobs:
         run: |
           mkdir -p app/src/main/jniLibs
           cd xray-core
+          go get golang.org/x/mobile@latest
+          go mod tidy
           gomobile bind -v -target=android -androidapi 21 -o ../libv2ray.aar ./main
           cd ..
           mkdir -p app/libs
