@@ -1,0 +1,6 @@
+{
+  "name": "KMTH",
+  "description": "High-performance modern VPN with real-time ping, server caching, dark mode glassmorphic UI, and OpenVPN architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
