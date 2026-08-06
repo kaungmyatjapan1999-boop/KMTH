@@ -63,4 +63,3 @@ jobs:
           name: kmth-vpn-v2ray-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
-
