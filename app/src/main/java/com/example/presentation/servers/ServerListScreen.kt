@@ -73,6 +73,7 @@ fun ServerListScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val syncState by viewModel.serverSyncState.collectAsStateWithLifecycle()
+    val isPingingServers by viewModel.isPingingServers.collectAsStateWithLifecycle()
 
     val filteredServers = servers.filter { server ->
         val matchesCategory = when (selectedCategory) {
@@ -134,6 +135,33 @@ fun ServerListScreen(
                         color = TextSecondary
                     )
                 }
+
+                IconButton(
+                    onClick = { viewModel.manualPingAllServers() },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x22FFFFFF))
+                        .border(1.dp, NeonPurple.copy(alpha = 0.5f), CircleShape)
+                        .testTag("ping_servers_button")
+                ) {
+                    if (isPingingServers) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = NeonPurple,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "Ping Real-Time Latency",
+                            tint = NeonPurple,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = { viewModel.refreshServers() },

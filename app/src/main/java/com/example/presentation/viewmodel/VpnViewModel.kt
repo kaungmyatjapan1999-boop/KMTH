@@ -18,6 +18,7 @@ import com.example.domain.model.VpnProtocol
 import com.example.domain.model.VpnServer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -88,8 +89,12 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
     private val _isTestingDiagnostics = MutableStateFlow(false)
     val isTestingDiagnostics: StateFlow<Boolean> = _isTestingDiagnostics.asStateFlow()
 
+    private val _isPingingServers = MutableStateFlow(false)
+    val isPingingServers: StateFlow<Boolean> = _isPingingServers.asStateFlow()
+
     private var connectionJob: Job? = null
     private var tickerJob: Job? = null
+    private var pingJob: Job? = null
     private var sessionStartTimestamp: Long = 0L
 
     init {
@@ -100,6 +105,33 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
                 if (_selectedServer.value == null && list.isNotEmpty()) {
                     _selectedServer.value = list.firstOrNull { it.id == "us_ny_01" } ?: list.first()
                 }
+            }
+        }
+        startPeriodicPingJob()
+    }
+
+    private fun startPeriodicPingJob() {
+        pingJob?.cancel()
+        pingJob = viewModelScope.launch {
+            while (isActive) {
+                val currentList = allServers.value
+                if (currentList.isNotEmpty()) {
+                    _isPingingServers.value = true
+                    repository.pingAllServers(currentList)
+                    _isPingingServers.value = false
+                }
+                delay(15000) // Re-ping every 15 seconds
+            }
+        }
+    }
+
+    fun manualPingAllServers() {
+        viewModelScope.launch {
+            val currentList = allServers.value
+            if (currentList.isNotEmpty()) {
+                _isPingingServers.value = true
+                repository.pingAllServers(currentList)
+                _isPingingServers.value = false
             }
         }
     }

@@ -1,8 +1,11 @@
 package com.example.presentation.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -60,18 +63,21 @@ fun GlowingConnectButton(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            animation = tween(durationMillis = if (connectionState == ConnectionState.CONNECTING) 1800 else 4000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "Angle"
     )
 
-    // Pulse scale for glow ring
+    // Pulse scale for connecting/connected glow ring
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
-        targetValue = 1.25f,
+        targetValue = if (connectionState == ConnectionState.CONNECTING) 1.32f else 1.20f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            animation = tween(
+                durationMillis = if (connectionState == ConnectionState.CONNECTING) 800 else 1800,
+                easing = FastOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "PulseScale"
@@ -80,20 +86,52 @@ fun GlowingConnectButton(
     // Pulse alpha for background aura
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.25f,
-        targetValue = 0.65f,
+        targetValue = if (connectionState == ConnectionState.CONNECTING) 0.85f else 0.55f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = LinearEasing),
+            animation = tween(
+                durationMillis = if (connectionState == ConnectionState.CONNECTING) 800 else 1800,
+                easing = FastOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "PulseAlpha"
     )
 
-    val (glowColors, mainColor) = when (connectionState) {
-        ConnectionState.DISCONNECTED -> listOf(ElectricBlue, NeonPurple, VividOrange, ElectricBlue) to ElectricBlue
-        ConnectionState.CONNECTING -> listOf(VividOrange, YellowConnecting, VividOrange) to YellowConnecting
-        ConnectionState.CONNECTED -> listOf(GreenConnected, ElectricBlue, GreenConnected) to GreenConnected
-        ConnectionState.DISCONNECTING -> listOf(VividOrange, ElectricBlue) to VividOrange
-        ConnectionState.RECONNECTING -> listOf(YellowConnecting, ElectricBlue) to YellowConnecting
+    // Smooth state color transitions
+    val targetMainColor = when (connectionState) {
+        ConnectionState.DISCONNECTED -> ElectricBlue
+        ConnectionState.CONNECTING -> YellowConnecting
+        ConnectionState.CONNECTED -> GreenConnected
+        ConnectionState.DISCONNECTING -> VividOrange
+        ConnectionState.RECONNECTING -> YellowConnecting
+    }
+
+    val mainColor by animateColorAsState(
+        targetValue = targetMainColor,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "MainColor"
+    )
+
+    val targetAuraColor = when (connectionState) {
+        ConnectionState.DISCONNECTED -> ElectricBlue.copy(alpha = 0.4f)
+        ConnectionState.CONNECTING -> YellowConnecting.copy(alpha = 0.8f)
+        ConnectionState.CONNECTED -> GreenConnected.copy(alpha = 0.7f)
+        ConnectionState.DISCONNECTING -> VividOrange.copy(alpha = 0.6f)
+        ConnectionState.RECONNECTING -> YellowConnecting.copy(alpha = 0.8f)
+    }
+
+    val auraColor by animateColorAsState(
+        targetValue = targetAuraColor,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "AuraColor"
+    )
+
+    val glowColors = when (connectionState) {
+        ConnectionState.DISCONNECTED -> listOf(ElectricBlue, NeonPurple, VividOrange, ElectricBlue)
+        ConnectionState.CONNECTING -> listOf(YellowConnecting, VividOrange, YellowConnecting)
+        ConnectionState.CONNECTED -> listOf(GreenConnected, ElectricBlue, GreenConnected)
+        ConnectionState.DISCONNECTING -> listOf(VividOrange, ElectricBlue, VividOrange)
+        ConnectionState.RECONNECTING -> listOf(YellowConnecting, VividOrange, YellowConnecting)
     }
 
     val buttonSize = 180.dp
@@ -106,7 +144,7 @@ fun GlowingConnectButton(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(240.dp)
         ) {
-            // Outer Glowing Aura Ring
+            // Outer Glowing Aura Ring (Pulsing Yellow for Connecting, Solid Green for Connected)
             Box(
                 modifier = Modifier
                     .size(buttonSize * pulseScale)
@@ -115,8 +153,8 @@ fun GlowingConnectButton(
                     .background(
                         brush = Brush.radialGradient(
                             colors = listOf(
-                                mainColor.copy(alpha = 0.6f),
-                                mainColor.copy(alpha = 0.15f),
+                                auraColor,
+                                auraColor.copy(alpha = 0.2f),
                                 Color.Transparent
                             )
                         )
@@ -161,8 +199,8 @@ fun GlowingConnectButton(
                         width = 1.5.dp,
                         brush = Brush.linearGradient(
                             colors = listOf(
-                                mainColor.copy(alpha = 0.6f),
-                                mainColor.copy(alpha = 0.15f)
+                                mainColor.copy(alpha = 0.8f),
+                                mainColor.copy(alpha = 0.2f)
                             )
                         ),
                         shape = CircleShape
@@ -217,11 +255,7 @@ fun GlowingConnectButton(
                         },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = when (connectionState) {
-                            ConnectionState.CONNECTED -> GreenConnected
-                            ConnectionState.CONNECTING -> YellowConnecting
-                            else -> TextPrimary
-                        },
+                        color = mainColor,
                         letterSpacing = 1.sp
                     )
                 }
@@ -231,7 +265,7 @@ fun GlowingConnectButton(
         Text(
             text = when (connectionState) {
                 ConnectionState.CONNECTED -> "KMTH Ultra-Encrypted Tunnel Active"
-                ConnectionState.CONNECTING -> "Establishing OpenVPN AES-256 Handshake..."
+                ConnectionState.CONNECTING -> "Establishing VLESS Reality Handshake..."
                 ConnectionState.DISCONNECTED -> "Traffic Exposed • Select Node & Connect"
                 ConnectionState.DISCONNECTING -> "Tearing down secure socket..."
                 ConnectionState.RECONNECTING -> "Optimizing route for lowest latency..."

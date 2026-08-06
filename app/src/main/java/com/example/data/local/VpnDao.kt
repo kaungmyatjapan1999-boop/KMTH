@@ -21,6 +21,9 @@ interface VpnDao {
     @Query("UPDATE vpn_servers SET isFavorite = :isFavorite WHERE id = :serverId")
     suspend fun updateFavoriteStatus(serverId: String, isFavorite: Boolean)
 
+    @Query("UPDATE vpn_servers SET pingMs = :pingMs WHERE id = :serverId")
+    suspend fun updateServerPing(serverId: String, pingMs: Int)
+
     @Query("SELECT * FROM connection_logs ORDER BY connectedAtTimestamp DESC LIMIT 30")
     fun getConnectionLogs(): Flow<List<ConnectionLogEntity>>
 
