@@ -36,7 +36,8 @@ data class VpnServer(
     val isPremium: Boolean = false,
     val isFavorite: Boolean = false,
     val category: ServerCategory = ServerCategory.FASTEST,
-    val availableProtocols: List<VpnProtocol> = VpnProtocol.values().toList()
+    val availableProtocols: List<VpnProtocol> = VpnProtocol.values().toList(),
+    val vlessConfig: String = ""
 )
 
 data class TrafficStats(

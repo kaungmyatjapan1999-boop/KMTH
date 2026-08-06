@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.KmthDatabase
 import com.example.data.remote.IpCheckResponse
 import com.example.data.remote.SpeedTestResultDto
+import com.example.data.repository.ServerSyncState
 import com.example.data.repository.VpnRepository
 import com.example.domain.model.ConnectionSessionLog
 import com.example.domain.model.ConnectionState
@@ -27,6 +28,9 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = KmthDatabase.getDatabase(application)
     private val repository = VpnRepository(db.vpnDao())
+
+    private val _serverSyncState = MutableStateFlow<ServerSyncState>(ServerSyncState.Idle)
+    val serverSyncState: StateFlow<ServerSyncState> = _serverSyncState.asStateFlow()
 
     val allServers: StateFlow<List<VpnServer>> = repository.getAllServers()
         .stateIn(
@@ -89,13 +93,21 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            repository.seedInitialServersIfEmpty()
+            refreshServers()
             // Observe servers and set initial selected server once loaded
             allServers.collect { list ->
                 if (_selectedServer.value == null && list.isNotEmpty()) {
                     _selectedServer.value = list.firstOrNull { it.id == "us_ny_01" } ?: list.first()
                 }
             }
+        }
+    }
+
+    fun refreshServers() {
+        viewModelScope.launch {
+            _serverSyncState.value = ServerSyncState.Syncing
+            val state = repository.fetchAndSyncServers(getApplication())
+            _serverSyncState.value = state
         }
     }
 

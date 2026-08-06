@@ -17,7 +17,8 @@ data class VpnServerEntity(
     val serverLoadPercentage: Int,
     val isPremium: Boolean,
     val isFavorite: Boolean,
-    val categoryName: String
+    val categoryName: String,
+    val vlessConfig: String = ""
 ) {
     fun toDomainModel(): VpnServer {
         val cat = try {
@@ -36,7 +37,8 @@ data class VpnServerEntity(
             serverLoadPercentage = serverLoadPercentage,
             isPremium = isPremium,
             isFavorite = isFavorite,
-            category = cat
+            category = cat,
+            vlessConfig = vlessConfig
         )
     }
 
@@ -53,7 +55,8 @@ data class VpnServerEntity(
                 serverLoadPercentage = server.serverLoadPercentage,
                 isPremium = server.isPremium,
                 isFavorite = server.isFavorite,
-                categoryName = server.category.name
+                categoryName = server.category.name,
+                vlessConfig = server.vlessConfig
             )
         }
     }

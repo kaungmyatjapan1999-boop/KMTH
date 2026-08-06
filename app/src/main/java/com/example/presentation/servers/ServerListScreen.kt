@@ -23,7 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,13 +46,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.repository.ServerSyncState
 import com.example.domain.model.ServerCategory
 import com.example.domain.model.VpnServer
 import com.example.presentation.components.FrostedMeshBackground
 import com.example.presentation.components.GlassmorphicCard
 import com.example.presentation.components.ServerItemCard
 import com.example.presentation.viewmodel.VpnViewModel
+import com.example.ui.theme.CyberDarkSurface
 import com.example.ui.theme.ElectricBlue
+import com.example.ui.theme.GreenConnected
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
@@ -64,6 +72,7 @@ fun ServerListScreen(
     val selectedServer by viewModel.selectedServer.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val syncState by viewModel.serverSyncState.collectAsStateWithLifecycle()
 
     val filteredServers = servers.filter { server ->
         val matchesCategory = when (selectedCategory) {
@@ -112,7 +121,7 @@ fun ServerListScreen(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "SELECT VPN SERVER",
                         fontSize = 18.sp,
@@ -124,6 +133,127 @@ fun ServerListScreen(
                         fontSize = 11.sp,
                         color = TextSecondary
                     )
+                }
+
+                IconButton(
+                    onClick = { viewModel.refreshServers() },
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x22FFFFFF))
+                        .border(1.dp, ElectricBlue.copy(alpha = 0.5f), CircleShape)
+                        .testTag("refresh_servers_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Sync VLESS Config",
+                        tint = ElectricBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Sync Status Indicator Banner
+            GlassmorphicCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                borderColor = when (syncState) {
+                    is ServerSyncState.Success -> GreenConnected.copy(alpha = 0.5f)
+                    is ServerSyncState.Offline -> VividOrange.copy(alpha = 0.5f)
+                    is ServerSyncState.Syncing -> ElectricBlue.copy(alpha = 0.5f)
+                    else -> Color(0x33FFFFFF)
+                }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        when (syncState) {
+                            is ServerSyncState.Syncing -> {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = ElectricBlue,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Fetching VLESS config from cloud...",
+                                    fontSize = 11.sp,
+                                    color = ElectricBlue,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            is ServerSyncState.Success -> {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "Online Synced",
+                                    tint = GreenConnected,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Online Mode • Synced ${(syncState as ServerSyncState.Success).count} VLESS nodes to Room DB",
+                                    fontSize = 11.sp,
+                                    color = GreenConnected,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            is ServerSyncState.Offline -> {
+                                Icon(
+                                    imageVector = Icons.Default.WifiOff,
+                                    contentDescription = "Offline Mode",
+                                    tint = VividOrange,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Offline Mode • ${(syncState as ServerSyncState.Offline).localCount} local nodes loaded from Room DB",
+                                    fontSize = 11.sp,
+                                    color = VividOrange,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                            is ServerSyncState.Error -> {
+                                Icon(
+                                    imageVector = Icons.Default.CloudSync,
+                                    contentDescription = "Sync Notice",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Local Database Mode • ${(syncState as ServerSyncState.Error).message}",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary,
+                                    maxLines = 1
+                                )
+                            }
+                            else -> {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "Ready",
+                                    tint = ElectricBlue,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Room DB VLESS Node Manager",
+                                    fontSize = 11.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+                    }
                 }
             }
 

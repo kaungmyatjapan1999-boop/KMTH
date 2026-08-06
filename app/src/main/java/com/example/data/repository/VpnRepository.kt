@@ -1,8 +1,10 @@
 package com.example.data.repository
 
+import android.content.Context
 import com.example.data.local.ConnectionLogEntity
 import com.example.data.local.VpnDao
 import com.example.data.local.VpnServerEntity
+import com.example.data.parser.VlessParser
 import com.example.data.remote.IpCheckResponse
 import com.example.data.remote.SpeedTestResultDto
 import com.example.data.remote.VpnApiService
@@ -10,18 +12,89 @@ import com.example.domain.model.ConnectionSessionLog
 import com.example.domain.model.ServerCategory
 import com.example.domain.model.VpnProtocol
 import com.example.domain.model.VpnServer
+import com.example.util.NetworkUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
+
+sealed class ServerSyncState {
+    object Idle : ServerSyncState()
+    object Syncing : ServerSyncState()
+    data class Success(val count: Int, val timestamp: Long = System.currentTimeMillis()) : ServerSyncState()
+    data class Offline(val localCount: Int) : ServerSyncState()
+    data class Error(val message: String) : ServerSyncState()
+}
 
 class VpnRepository(
     private val vpnDao: VpnDao,
     private val apiService: VpnApiService? = null
 ) {
 
-    // Seed default servers if empty
+    private val okHttpClient = OkHttpClient.Builder()
+        .connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(12, TimeUnit.SECONDS)
+        .build()
+
+    private val configUrl = "https://gist.githubusercontent.com/kaungmyatjapan1999-boop/e1f6ac00358d042d58d49a8547eccc9b/raw/config.txt"
+
+    /**
+     * Checks internet availability.
+     * - If available: Downloads remote VLESS config, parses it, updates Room DB, and returns Success.
+     * - If offline or download fails: Loads local DB servers and returns Offline/Error state.
+     */
+    suspend fun fetchAndSyncServers(context: Context): ServerSyncState = withContext(Dispatchers.IO) {
+        val isOnline = NetworkUtils.isInternetAvailable(context)
+
+        if (!isOnline) {
+            // Seed initial fallback servers if DB is empty in offline mode
+            seedInitialServersIfEmpty()
+            val localList = vpnDao.getAllServers().firstOrNull() ?: emptyList()
+            return@withContext ServerSyncState.Offline(localCount = localList.size)
+        }
+
+        try {
+            val request = Request.Builder()
+                .url(configUrl)
+                .header("User-Agent", "KMTH-VPN-Android")
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                seedInitialServersIfEmpty()
+                val localList = vpnDao.getAllServers().firstOrNull() ?: emptyList()
+                return@withContext ServerSyncState.Error("HTTP ${response.code}: Failed to download config.txt")
+            }
+
+            val rawBody = response.body?.string().orEmpty()
+            val parsedServers = VlessParser.parseConfigText(rawBody)
+
+            if (parsedServers.isNotEmpty()) {
+                val entities = parsedServers.map { VpnServerEntity.fromDomainModel(it) }
+                vpnDao.insertServers(entities)
+                ServerSyncState.Success(count = parsedServers.size)
+            } else {
+                // If remote response had no valid vless links, fall back to initial seeded
+                seedInitialServersIfEmpty()
+                val localList = vpnDao.getAllServers().firstOrNull() ?: emptyList()
+                ServerSyncState.Offline(localCount = localList.size)
+            }
+        } catch (e: Exception) {
+            seedInitialServersIfEmpty()
+            val localList = vpnDao.getAllServers().firstOrNull() ?: emptyList()
+            ServerSyncState.Error(e.message ?: "Failed to fetch remote server list")
+        }
+    }
+
+    // Seed default servers if database is empty
     suspend fun seedInitialServersIfEmpty() = withContext(Dispatchers.IO) {
+        val existing = vpnDao.getAllServers().firstOrNull()
+        if (!existing.isNullOrEmpty()) return@withContext
+
         val defaultList = listOf(
             VpnServer(
                 id = "us_ny_01",
@@ -113,71 +186,6 @@ class VpnRepository(
                 isPremium = false,
                 isFavorite = true,
                 category = ServerCategory.P2P
-            ),
-            VpnServer(
-                id = "kr_seoul_01",
-                countryName = "South Korea",
-                countryCode = "KR",
-                cityName = "Seoul (Gangnam Node)",
-                ipAddress = "211.233.15.80",
-                flagEmoji = "🇰🇷",
-                pingMs = 21,
-                serverLoadPercentage = 30,
-                isPremium = true,
-                isFavorite = false,
-                category = ServerCategory.GAMING
-            ),
-            VpnServer(
-                id = "ca_toronto_01",
-                countryName = "Canada",
-                countryCode = "CA",
-                cityName = "Toronto Central",
-                ipAddress = "159.203.45.190",
-                flagEmoji = "🇨🇦",
-                pingMs = 42,
-                serverLoadPercentage = 33,
-                isPremium = false,
-                isFavorite = false,
-                category = ServerCategory.FASTEST
-            ),
-            VpnServer(
-                id = "au_sydney_01",
-                countryName = "Australia",
-                countryCode = "AU",
-                cityName = "Sydney (Coastal)",
-                ipAddress = "139.59.250.11",
-                flagEmoji = "🇦🇺",
-                pingMs = 88,
-                serverLoadPercentage = 49,
-                isPremium = true,
-                isFavorite = false,
-                category = ServerCategory.STREAMING
-            ),
-            VpnServer(
-                id = "se_stockholm_01",
-                countryName = "Sweden",
-                countryCode = "SE",
-                cityName = "Stockholm Freedom",
-                ipAddress = "185.228.84.10",
-                flagEmoji = "🇸🇪",
-                pingMs = 38,
-                serverLoadPercentage = 19,
-                isPremium = false,
-                isFavorite = false,
-                category = ServerCategory.P2P
-            ),
-            VpnServer(
-                id = "br_saopaulo_01",
-                countryName = "Brazil",
-                countryCode = "BR",
-                cityName = "São Paulo Hub",
-                ipAddress = "191.232.190.5",
-                flagEmoji = "🇧🇷",
-                pingMs = 110,
-                serverLoadPercentage = 54,
-                isPremium = false,
-                isFavorite = false,
-                category = ServerCategory.FASTEST
             )
         )
 
@@ -248,3 +256,4 @@ class VpnRepository(
         )
     }
 }
+

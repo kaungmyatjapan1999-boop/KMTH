@@ -98,6 +98,23 @@ fun ServerItemCard(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
+                        if (server.vlessConfig.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(ElectricBlue.copy(alpha = 0.2f))
+                                    .border(1.dp, ElectricBlue.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "VLESS",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = ElectricBlue
+                                )
+                            }
+                        }
                         if (server.isPremium) {
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
