@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build & Package KMTH VPN APK
+    name: Build Xray Core Native & Package KMTH VPN APK
     runs-on: ubuntu-latest
 
     steps:
@@ -22,7 +22,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Set up Go Environment (V2Ray Core / Gomobile)
+      - name: Set up Go Environment
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
@@ -32,15 +32,34 @@ jobs:
           go install golang.org/x/mobile/cmd/gomobile@latest
           gomobile init
 
+      - name: Clone Xray-core Source Code
+        run: |
+          git clone --depth 1 https://github.com/XTLS/Xray-core.git xray-core
+
+      - name: Compile Native Android Libraries via Gomobile
+        run: |
+          mkdir -p app/src/main/jniLibs
+          cd xray-core
+          gomobile bind -v -target=android -androidapi 21 -o ../libv2ray.aar ./main
+          cd ..
+          mkdir -p app/libs
+          cp libv2ray.aar app/libs/ || true
+          unzip -o libv2ray.aar "jni/*" -d app/src/main/ || true
+          if [ -d "app/src/main/jni" ]; then
+            mv app/src/main/jni/* app/src/main/jniLibs/ || true
+            rm -rf app/src/main/jni
+          fi
+
       - name: Grant Execute Permission for Gradle Wrapper
         run: chmod +x gradlew || true
 
       - name: Build Release APK with Gradle
-        run: gradle assembleRelease
+        run: gradle assembleRelease --no-daemon
 
       - name: Upload Release APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kmth-vpn-release-apk
+          name: kmth-vpn-v2ray-release-apk
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: warn
+
