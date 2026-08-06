@@ -6,6 +6,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -50,6 +54,9 @@ class KmthVpnService : VpnService() {
 
         private val _connectedServerName = MutableStateFlow("Disconnected")
         val connectedServerName: StateFlow<String> = _connectedServerName.asStateFlow()
+
+        private val _isReconnecting = MutableStateFlow(false)
+        val isReconnecting: StateFlow<Boolean> = _isReconnecting.asStateFlow()
     }
 
     private var tunParcelFd: ParcelFileDescriptor? = null
@@ -57,8 +64,15 @@ class KmthVpnService : VpnService() {
     private val serviceScope = CoroutineScope(Dispatchers.IO)
 
     private var currentServerName = "KMTH Server"
+    private var currentServerIp = "1.1.1.1"
+    private var currentVlessConfig = ""
     private var isKillSwitchActive = false
     private var isDnsProtectionActive = true
+    private var isSplitTunnelingActive = false
+    private var currentProtocol = "VLESS"
+
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -103,8 +117,15 @@ class KmthVpnService : VpnService() {
         protocol: String
     ) {
         currentServerName = serverName
+        currentServerIp = serverIp
+        currentVlessConfig = vlessConfig
         isKillSwitchActive = killSwitch
         isDnsProtectionActive = dnsProtection
+        isSplitTunnelingActive = splitTunneling
+        currentProtocol = protocol
+
+        // Register Network Callback for auto-reconnect on network state change
+        registerNetworkChangeObserver()
 
         // Start Foreground Notification first
         val notification = buildNotification(serverName, protocol, "Encrypted Tunnel Active")
@@ -176,6 +197,7 @@ class KmthVpnService : VpnService() {
 
                 _isServiceConnected.value = true
                 _connectedServerName.value = serverName
+                _isReconnecting.value = false
 
                 Log.i(TAG, "TUN Interface successfully established. File Descriptor: ${tunParcelFd?.fd}")
 
@@ -211,6 +233,75 @@ class KmthVpnService : VpnService() {
         }
     }
 
+    private fun registerNetworkChangeObserver() {
+        if (networkCallback != null) return
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+                Log.i(TAG, "Network became available ($network). Triggering automatic VPN reconnect check.")
+                if (_isServiceConnected.value && !_isReconnecting.value) {
+                    performAutoReconnect()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                Log.w(TAG, "Network lost ($network). Kill Switch active: $isKillSwitchActive")
+                if (isKillSwitchActive) {
+                    _isReconnecting.value = true
+                }
+            }
+        }
+
+        try {
+            connectivityManager?.registerNetworkCallback(request, networkCallback!!)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register network callback observer", e)
+        }
+    }
+
+    private fun performAutoReconnect() {
+        serviceScope.launch {
+            _isReconnecting.value = true
+            Log.i(TAG, "Re-establishing V2Ray socket tunnel on new network interface...")
+            delay(500)
+            V2RayCoreBridge.stopCore()
+            delay(300)
+
+            val dummyServer = VpnServer(
+                id = "active_node",
+                countryName = currentServerName,
+                countryCode = "US",
+                cityName = currentServerName,
+                ipAddress = currentServerIp,
+                vlessConfig = currentVlessConfig
+            )
+            val securitySettings = SecuritySettings(
+                killSwitchEnabled = isKillSwitchActive,
+                dnsLeakProtection = isDnsProtectionActive,
+                splitTunnelingEnabled = isSplitTunnelingActive
+            )
+            val v2rayJson = VlessJsonConfigGenerator.generateJsonConfig(dummyServer, securitySettings)
+            V2RayCoreBridge.startCore(v2rayJson)
+            _isReconnecting.value = false
+            Log.i(TAG, "Auto-reconnect completed successfully on network interface change.")
+        }
+    }
+
+    private fun unregisterNetworkChangeObserver() {
+        try {
+            networkCallback?.let { connectivityManager?.unregisterNetworkCallback(it) }
+            networkCallback = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering network callback", e)
+        }
+    }
+
     private fun stopVpnTunnel() {
         Log.i(TAG, "Stopping KMTH VPN Service...")
         serviceJob?.cancel()
@@ -220,6 +311,7 @@ class KmthVpnService : VpnService() {
     }
 
     private fun cleanUpTunnel() {
+        unregisterNetworkChangeObserver()
         try {
             tunParcelFd?.close()
             tunParcelFd = null
