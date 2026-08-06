@@ -42,7 +42,16 @@ jobs:
         run: |
           mkdir -p app/src/main/jniLibs
           cd xray-core
-          go get -tool golang.org/x/mobile/cmd/gobind
+          cat << 'EOF' > tools.go
+          //go:build tools
+          package main
+
+          import (
+              _ "golang.org/x/mobile/bind"
+              _ "golang.org/x/mobile/cmd/gobind"
+          )
+          EOF
+          go get -tool golang.org/x/mobile/cmd/gobind || true
           go get golang.org/x/mobile@latest
           go mod tidy
           gomobile bind -v -target=android -androidapi 21 -o ../libv2ray.aar ./main
