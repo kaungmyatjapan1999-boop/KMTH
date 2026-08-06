@@ -43,6 +43,8 @@ jobs:
           mkdir -p app/src/main/jniLibs
           cd xray-core
           go get golang.org/x/mobile@latest
+          go get golang.org/x/mobile/bind@latest
+          go mod tidy
           gomobile bind -v -target=android -androidapi 21 -o ../libv2ray.aar ./main
           cd ..
           mkdir -p app/libs
