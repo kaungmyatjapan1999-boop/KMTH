@@ -264,7 +264,76 @@ fun DiagnosticsScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // V2Ray Core Engine & TUN Interface Status Card
+                GlassmorphicCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    borderColor = NeonPurple.copy(alpha = 0.5f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "V2RAY CORE & TUN INTERFACE",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonPurple
+                            )
+                            Text(
+                                text = com.example.service.V2RayCoreBridge.getCoreVersion(),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSecondary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "JNI libv2ray.so status:",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                            Text(
+                                text = if (com.example.service.V2RayCoreBridge.isRunning()) "ACTIVE RUNNING" else "STANDBY / READY",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (com.example.service.V2RayCoreBridge.isRunning()) GreenConnected else ElectricBlue
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "Protocols Supported:",
+                                fontSize = 11.sp,
+                                color = TextMuted
+                            )
+                            Text(
+                                text = "VLESS + REALITY / TLS / gRPC / WS",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Session History Section Header
                 Row(

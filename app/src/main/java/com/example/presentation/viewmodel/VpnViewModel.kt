@@ -1,6 +1,7 @@
 package com.example.presentation.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.KmthDatabase
@@ -125,14 +126,39 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
         connectionJob = viewModelScope.launch {
             _connectionState.value = ConnectionState.CONNECTING
 
-            // Simulate OpenVPN AES-256 handshake and key exchange
-            delay(1500)
+            val currentServer = _selectedServer.value
+            val security = _securitySettings.value
+
+            // Launch KmthVpnService with VLESS config and Kill Switch settings
+            val context = getApplication<Application>()
+            val intent = Intent(context, com.example.service.KmthVpnService::class.java).apply {
+                action = com.example.service.KmthVpnService.ACTION_CONNECT
+                putExtra(com.example.service.KmthVpnService.EXTRA_SERVER_NAME, currentServer?.cityName ?: "KMTH Shield")
+                putExtra(com.example.service.KmthVpnService.EXTRA_SERVER_IP, currentServer?.ipAddress ?: "1.1.1.1")
+                putExtra(com.example.service.KmthVpnService.EXTRA_VLESS_CONFIG, currentServer?.vlessConfig ?: "")
+                putExtra(com.example.service.KmthVpnService.EXTRA_KILL_SWITCH, security.killSwitchEnabled)
+                putExtra(com.example.service.KmthVpnService.EXTRA_DNS_PROTECTION, security.dnsLeakProtection)
+                putExtra(com.example.service.KmthVpnService.EXTRA_SPLIT_TUNNELING, security.splitTunnelingEnabled)
+                putExtra(com.example.service.KmthVpnService.EXTRA_PROTOCOL, security.selectedProtocol.displayName)
+            }
+
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // Simulate VLESS Reality handshake and key exchange
+            delay(1200)
 
             _connectionState.value = ConnectionState.CONNECTED
             sessionStartTimestamp = System.currentTimeMillis()
             _connectionTimerSeconds.value = 0L
 
-            val currentServer = _selectedServer.value
             _ipCheckResponse.value = repository.simulateIpLookup(currentServer)
 
             startTrafficTicker()
@@ -144,7 +170,19 @@ class VpnViewModel(application: Application) : AndroidViewModel(application) {
         connectionJob?.cancel()
         connectionJob = viewModelScope.launch {
             _connectionState.value = ConnectionState.DISCONNECTING
-            delay(800)
+
+            // Stop KmthVpnService
+            val context = getApplication<Application>()
+            val intent = Intent(context, com.example.service.KmthVpnService::class.java).apply {
+                action = com.example.service.KmthVpnService.ACTION_DISCONNECT
+            }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            delay(600)
 
             val durationSecs = _connectionTimerSeconds.value
             val currentServer = _selectedServer.value
