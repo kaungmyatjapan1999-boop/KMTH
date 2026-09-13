@@ -1,10 +1,14 @@
 package com.kmth.vpn
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Color
+import android.net.VpnService
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -23,6 +27,10 @@ class MainActivity : AppCompatActivity() {
         "🇹🇭 DTAC UIV",
         "🇹🇭 DTAC WETV"
     )
+
+    companion object {
+        private const val VPN_REQUEST_CODE = 100
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +99,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showServerSelector() {
 
-        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        val builder = AlertDialog.Builder(this)
 
         builder.setTitle("SELECT SERVER")
 
@@ -116,23 +124,75 @@ class MainActivity : AppCompatActivity() {
 
     private fun toggleConnection() {
 
-        if (!connected) {
-
-            connected = true
-
-            statusText.text = "● CONNECTED"
-            statusText.setTextColor(Color.GREEN)
-
-            connectText.text = "DISCONNECT"
-
+        if (connected) {
+            disconnectVpn()
         } else {
+            requestVpnPermission()
+        }
+    }
 
-            connected = false
+    private fun requestVpnPermission() {
 
-            statusText.text = "● DISCONNECTED"
-            statusText.setTextColor(Color.LTGRAY)
+        val intent = VpnService.prepare(this)
 
-            connectText.text = "CONNECT"
+        if (intent != null) {
+            startActivityForResult(
+                intent,
+                VPN_REQUEST_CODE
+            )
+        } else {
+            startVpnService()
+        }
+    }
+
+    private fun startVpnService() {
+
+        val intent = Intent(this, MyVpnService::class.java)
+
+        startService(intent)
+
+        connected = true
+
+        statusText.text = "● CONNECTED"
+        statusText.setTextColor(Color.GREEN)
+
+        connectText.text = "DISCONNECT"
+    }
+
+    private fun disconnectVpn() {
+
+        val intent = Intent(this, MyVpnService::class.java)
+
+        stopService(intent)
+
+        connected = false
+
+        statusText.text = "● DISCONNECTED"
+        statusText.setTextColor(Color.LTGRAY)
+
+        connectText.text = "CONNECT"
+    }
+
+    @Deprecated("Deprecated in Android API")
+    override fun onActivityResult(
+        requestCode: Int,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        super.onActivityResult(
+            requestCode,
+            resultCode,
+            data
+        )
+
+        if (requestCode == VPN_REQUEST_CODE) {
+
+            if (resultCode == Activity.RESULT_OK) {
+                startVpnService()
+            } else {
+                statusText.text = "● VPN PERMISSION DENIED"
+                statusText.setTextColor(Color.RED)
+            }
         }
     }
 }
