@@ -1,5 +1,6 @@
 package com.kmth.vpn
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.graphics.Color
 import android.view.Gravity
@@ -8,6 +9,16 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
+
+    private var selectedServer = "SELECT SERVER"
+
+    private val servers = arrayOf(
+        "🇹🇭 DTAC V2RAY",
+        "🇹🇭 DTAC SSH",
+        "🇹🇭 DTAC SOCIAL",
+        "🇹🇭 DTAC UIV",
+        "🇹🇭 DTAC WETV"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,11 +45,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         val server = TextView(this).apply {
-            text = "🇹🇭  SELECT SERVER"
+            text = "🇹🇭  $selectedServer"
             textSize = 20f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             setPadding(20, 30, 20, 30)
+
+            setOnClickListener {
+                showServerDialog(this)
+            }
         }
 
         val connect = TextView(this).apply {
@@ -55,5 +70,19 @@ class MainActivity : AppCompatActivity() {
         root.addView(connect)
 
         setContentView(root)
+    }
+
+    private fun showServerDialog(serverView: TextView) {
+
+        AlertDialog.Builder(this)
+            .setTitle("SELECT SERVER")
+            .setItems(servers) { _, which ->
+
+                selectedServer = servers[which]
+
+                serverView.text = selectedServer
+            }
+            .setNegativeButton("CANCEL", null)
+            .show()
     }
 }
