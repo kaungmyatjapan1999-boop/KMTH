@@ -30,7 +30,7 @@ jobs:
           mkdir -p app/libs
           curl -L -o libxray-android.zip https://github.com/XTLS/libXray/releases/download/v26.9.9/libxray-android.zip
           unzip -o libxray-android.zip -d libxray
-          cp libxray/libXray.aar app/libs/libXray.aar
+          cp libxray/libxray-android/libXray.aar app/libs/libXray.aar
 
       - name: Build Debug APK
         run: gradle assembleDebug
