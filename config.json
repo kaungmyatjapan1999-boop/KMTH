@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "servers": [
+    {
+      "name": "DTAC V2RAY",
+      "type": "vless",
+      "config": "YOUR_VLESS_CONFIG"
+    },
+    {
+      "name": "DTAC SSH",
+      "type": "ssh",
+      "config": "YOUR_SSH_CONFIG"
+    }
+  ]
+}
