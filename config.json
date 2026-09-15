@@ -1,15 +1,30 @@
 {
-  "version": 1,
+  "version": 3,
   "servers": [
     {
       "name": "DTAC V2RAY",
       "type": "vless",
-      "config": "YOUR_VLESS_CONFIG"
+      "config": "vless://3f55cdfc-bb45-4424-96a0-f3cc7d01b3a0@www.true.th:80?encryption=none&type=ws&host=d3cdy6viklzpq1.cloudfront.net&headerType=none&path=%2Fyaw#Dtac%20V2ray"
     },
     {
       "name": "DTAC SSH",
-      "type": "ssh",
-      "config": "YOUR_SSH_CONFIG"
+      "type": "ssh_ws",
+      "config": "ssh://kmkm11:kmkm11@www.true.th:22?u+fRSFV7ZzQTd2kgWG+TY1bRP4tPDqc5gYUHfxV39aMls9V92UQ5EEQQUjVO/wu/6tcW+DJ3TgUHoEybFxB2uoQGvQdz4UjY1/w/GYRNY6gAbTArUzDhJrZngSJZ7IB4yMMSuX+mjLkcsa1nIH+/acLfx4/koVXWJryKLVZ8DoBMZw69ExEbtyBRnRvnGp04w9gNB5hqrTtTB63Sf0Y2WOhOOpjeUxF9EmaOGq6W7JgKcasXNd1CgTJMKS9MM+G6s1k7O6jdnNjW+FoHnSzmau54e3oglL5zswdsZUmhvOD3XB+EJbgQRF8sqGwStrSlUx0P9xG47H2MO2GUblBY0ygfrP2e6LZv9IF64+LHT72zZCNyQ6K3KP53APTcARpt0JVNoFy7sHE1P8JI4+RhwcGclj0Or6MS/gWqnxxvTNiBybvZv5drIad0VYusrXIq/83E+xOq8Wt0nNlFxRh6SN8iDKf5hrzlN6FH9i8bmi/Yafoodm6I3lbnD36Z00yvHRW5ZR3r2yLOKun7WnV6cuFw4Y1ndeXbEEO2Id/+3/BnZfsQWtUSlIOGb45RLWDpeeoyDcfKkaLD/y3Rq6CKGuSm4+826+J+/quNSEOjLLYQvho8hTc7f+NMrp3YtRkIELbron27wpiCWFNA0LTS3tOyDeDI/2Za8fyG8RdoVt4Y3E7tJWKVH4LIEhEO4K88rvDamt2Ovr3pbi4mKczhCGDtvI3WdO3lDbL2EmelLZtNPZCxD4L6F8OULlBRXeB8VACmXkjH52BBl+wdupfRnZMMvm1NCoFCODAXzFKicHHib7ULK00maOy7v/xHOIOEOZ9/q1RJ0lGDtFh7tQHqMfwrA7Xe8YMmhq6NscI5uY1HNdLNesbbKRZm+obJ20c8//6O9gqMky7t21PuvbuZEw==#DTAC%20SSH"
+    },
+    {
+      "name": "DTAC SOCIAL",
+      "type": "ssh_ws",
+      "config": "ssh://kmkm11:kmkm11@noprokm.kaungmyat.site:22?u+fRSFV7ZzQTd2kgWG+TYwyOU6GD+h5lFt/L8DoHMpK8jN9f5DHpj8vFtC1d9p55S1w6PqnRgUna9f5/4xaDVOhOOpjeUxF9EmaOGq6W7JgKcasXNd1CgTJMKS9MM+G6s1k7O6jdnNjW+FoHnSzmatrtGTyilv31TsDfmpKmX7xwzWmyWvH0A1k+Dky3zvnK22dQovey7nBob7OcHEqMWeyN9LODgXEjeF6dabdYUCQFwoFojuttM7Oj7TfUynrXb3RTeBs0s3RGZxth35D/Z/Li1HOqC2EIG5n0NppTH/6IRUvyw27Ck/9IEq6OFBvs3MjaMj54H/qGdqWmWQPIrlCiDBpmC8fLMfmPZauXETjKTTk5Ujra8VzFkdJL6Y+aRVHCBCLFn5oAcnsZd/bZrBVKfc9kUWZ0uqSCVOZHXfZe1af/CteTToFSXaRh05SWVWacu2rJUzXKeKIw26ZeE7hJ+rNBB5eeBL0j4yl43VI=#Dtac%20Social%20"
+    },
+    {
+      "name": "DTAC UIV",
+      "type": "ssh_ws",
+      "config": "ssh://kmkm11:kmkm11@d2htdw8fj0jdwe.cloudfront.net:22?u+fRSFV7ZzQTd2kgWG+TYwyOU6GD+h5lFt/L8DoHMpIls9V92UQ5EEQQUjVO/wu/nUnuGVh9q7RtHDGdJYdLpL+wXoxC3rLTGP+6+BqfAV/WKuUevitZUfFsrgwPe4MMIQxFoWfSa7+QBet6LQFLiVa/ZSHa83rfOSnijtVTryocm3grR28WaZUFYWQ30px5mpij8SaHRKfczXNboofSvbMAP4aFgKYeIojGsFw6w+mhwn5imjTIlGDykV64i5E9hGxcBEYQdux95nJ2R96TtcZyMGB7w3au5xgpXhS4rEQr9EnptworvI/4r24AyyzevaA7EoioeQBijjXaUxu+gCXFwziRB0O6/O9/RvzDnHT4eyq3jsHFf7EhjxBECylDIHYVHwWHsZh7NHwFgu4jrriKOmcp8vAu1n/E7MMJ2vS0Uctk06vp7ISne/TYpzznzXUR/maDe4vCPGypi3jfjiDz5jLqTjhQteY03IE64J8KyzK6HbbDpPi63f2o6rSTyH2osNuF76TKDC8c4c1w2+T08zt/Cvc2C7PkSeLpX0bhVl4BQWfHbecN8yxxETb5+TsMjefIltE8eqJIIIgaMnv34JUy/SDbw0GTYbqtFXe45ufYkiZqe8Dni6LRfbKUGxQ3M8uAhL9wnOSfmLPI4iwb41xzoSQCfpABX20229Q=#DTAC%20UIV"
+    },
+    {
+      "name": "DTAC WETV",
+      "type": "ssh_ws",
+      "config": "ssh://kmkm11:kmkm11@d2htdw8fj0jdwe.cloudfront.net:22?u+fRSFV7ZzQTd2kgWG+TYwyOU6GD+h5lFt/L8DoHMpIls9V92UQ5EEQQUjVO/wu/nUnuGVh9q7RtHDGdJYdLpL+wXoxC3rLTGP+6+BqfAV/WKuUevitZUfFsrgwPe4MMIQxFoWfSa7+QBet6LQFLiVa/ZSHa83rfOSnijtVTryocm3grR28WaZUFYWQ30px5mpij8SaHRKfczXNboofSvbMAP4aFgKYeIojGsFw6w+mhwn5imjTIlGDykV64i5E9hGxcBEYQdux95nJ2R96TtcZyMGB7w3au5xgpXhS4rEQr9EnptworvI/4r24AyyzevaA7EoioeQBijjXaUxu+gCXFwziRB0O6/O9/RvzDnHT4eyq3jsHFf7EhjxBECylDIHYVHwWHsZh7NHwFgu4jrriKOmcp8vAu1n/E7MMJ2vS0Uctk06vp7ISne/TYpzznzXUR/maDe4vCPGypi3jfjiDz5jLqTjhQteY03IE64J8KyzK6HbbDpPi63f2o6rSTyH2osNuF76TKDC8c4c1w2+T08zt/Cvc2C7PkSeLpX0bhVl4BQWfHbecN8yxxETb5+TsMjefIltE8eqJIIIgaMnv34JUy/SDbw0GTYbqtFXe45ufYkiZqe8Dni6LRfbKUGxQ3M8uAhL9wnOSfmLPI4iwb41xzoSQCfpABX20229Q=#DTAC%20UIV"
     }
   ]
 }
