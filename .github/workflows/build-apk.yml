@@ -62,18 +62,43 @@ jobs:
           echo "Inspecting libXray API"
           echo "========================================"
 
-          echo "--- AAR files ---"
-          unzip -l app/libs/libXray.aar
+          mkdir -p /tmp/libxray
+
+          unzip -o app/libs/libXray.aar classes.jar \
+            -d /tmp/libxray
 
           echo ""
-          echo "--- Controller / LibXray classes ---"
-          unzip -l app/libs/libXray.aar | \
-            grep -Ei 'DialerController|ListenerController|LibXray' || true
+          echo "========================================"
+          echo "Controller / DNS / LibXray classes"
+          echo "========================================"
+
+          unzip -l /tmp/libxray/classes.jar | \
+            grep -Ei \
+            'DialerController|ListenerController|LibXray|Controller|DNS' || true
 
           echo ""
-          echo "--- AAR structure ---"
+          echo "========================================"
+          echo "All classes containing libXray"
+          echo "========================================"
+
+          unzip -l /tmp/libxray/classes.jar | \
+            grep -Ei 'libxray|LibXray' || true
+
+          echo ""
+          echo "========================================"
+          echo "All Controller classes"
+          echo "========================================"
+
+          unzip -l /tmp/libxray/classes.jar | \
+            grep -Ei 'Controller' || true
+
+          echo ""
+          echo "========================================"
+          echo "AAR native libraries"
+          echo "========================================"
+
           unzip -l app/libs/libXray.aar | \
-            grep -Ei '\.jar$|classes\.jar|jni|\.so$' || true
+            grep -Ei '\.so$' || true
 
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
