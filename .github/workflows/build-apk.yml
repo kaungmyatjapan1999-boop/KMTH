@@ -62,6 +62,7 @@ jobs:
           echo "Inspecting libXray API"
           echo "========================================"
 
+          rm -rf /tmp/libxray
           mkdir -p /tmp/libxray
 
           unzip -o app/libs/libXray.aar classes.jar \
@@ -69,39 +70,47 @@ jobs:
 
           echo ""
           echo "========================================"
-          echo "Controller / DNS / LibXray classes"
+          echo "Classes related to libXray"
           echo "========================================"
 
-          unzip -l /tmp/libxray/classes.jar | \
-            grep -Ei \
-            'DialerController|ListenerController|LibXray|Controller|DNS' || true
-
-          echo ""
-          echo "========================================"
-          echo "All classes containing libXray"
-          echo "========================================"
-
-          unzip -l /tmp/libxray/classes.jar | \
-            grep -Ei 'libxray|LibXray' || true
+          jar tf /tmp/libxray/classes.jar | \
+            grep -Ei 'libXray|Controller|DNS' || true
 
           echo ""
           echo "========================================"
-          echo "All Controller classes"
+          echo "DialerController methods"
           echo "========================================"
 
-          unzip -l /tmp/libxray/classes.jar | \
-            grep -Ei 'Controller' || true
+          javap -p -classpath /tmp/libxray/classes.jar \
+            libXray.DialerController || true
 
           echo ""
           echo "========================================"
-          echo "AAR native libraries"
+          echo "LibXray methods"
           echo "========================================"
 
-          unzip -l app/libs/libXray.aar | \
-            grep -Ei '\.so$' || true
+          javap -p -classpath /tmp/libxray/classes.jar \
+            libXray.LibXray || true
+
+          echo ""
+          echo "========================================"
+          echo "Potential Dialer Controller classes"
+          echo "========================================"
+
+          jar tf /tmp/libxray/classes.jar | \
+            grep -Ei 'DialerController' || true
+
+          echo ""
+          echo "========================================"
+          echo "Potential DNS related classes"
+          echo "========================================"
+
+          jar tf /tmp/libxray/classes.jar | \
+            grep -Ei 'DNS|Dns' || true
 
       - name: Build Debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          gradle assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
