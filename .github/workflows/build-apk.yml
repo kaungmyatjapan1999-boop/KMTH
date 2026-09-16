@@ -35,15 +35,45 @@ jobs:
       - name: Download libXray
         run: |
           mkdir -p app/libs
-          curl -L -o libxray-android.zip https://github.com/XTLS/libXray/releases/download/v26.9.9/libxray-android.zip
+
+          curl -L -o libxray-android.zip \
+            https://github.com/XTLS/libXray/releases/download/v26.9.9/libxray-android.zip
+
           unzip -o libxray-android.zip -d libxray
-          cp libxray/libxray-android/libXray.aar app/libs/libXray.aar
+
+          cp libxray/libxray-android/libXray.aar \
+            app/libs/libXray.aar
 
       - name: Verify libXray
         run: |
-          echo "Checking libXray.aar..."
+          echo "========================================"
+          echo "Checking libXray.aar"
+          echo "========================================"
+
           ls -lh app/libs/libXray.aar
+
           test -f app/libs/libXray.aar
+
+          echo "libXray.aar OK"
+
+      - name: Inspect libXray API
+        run: |
+          echo "========================================"
+          echo "Inspecting libXray API"
+          echo "========================================"
+
+          echo "--- AAR files ---"
+          unzip -l app/libs/libXray.aar
+
+          echo ""
+          echo "--- Controller / LibXray classes ---"
+          unzip -l app/libs/libXray.aar | \
+            grep -Ei 'DialerController|ListenerController|LibXray' || true
+
+          echo ""
+          echo "--- AAR structure ---"
+          unzip -l app/libs/libXray.aar | \
+            grep -Ei '\.jar$|classes\.jar|jni|\.so$' || true
 
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
