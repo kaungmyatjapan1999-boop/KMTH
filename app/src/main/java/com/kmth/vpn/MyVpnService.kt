@@ -84,19 +84,6 @@ class MyVpnService : VpnService() {
             "Server type: $serverType"
         )
 
-        if (
-            serverType != "vless" ||
-            serverConfig.isBlank()
-        ) {
-            Log.e(
-                TAG,
-                "Unsupported or empty server config: $serverName"
-            )
-
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
         try {
 
             /*
@@ -163,7 +150,9 @@ class MyVpnService : VpnService() {
             /*
              * Pass the Android TUN file descriptor to Xray.
              */
-            startXray(serverConfig)
+            startXray(
+                serverConfig
+            )
 
             return START_STICKY
 
@@ -238,7 +227,9 @@ class MyVpnService : VpnService() {
                 )
 
                 val convertJson =
-                    JSONObject(convertResult)
+                    JSONObject(
+                        convertResult
+                    )
 
                 if (
                     !convertJson.optBoolean(
@@ -403,7 +394,9 @@ class MyVpnService : VpnService() {
                     )
 
                 val runJson =
-                    JSONObject(runResult)
+                    JSONObject(
+                        runResult
+                    )
 
                 if (
                     runJson.optBoolean(
