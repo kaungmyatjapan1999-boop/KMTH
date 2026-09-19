@@ -1,9 +1,13 @@
 package com.kmth.vpn
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.net.VpnService
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.LinearLayout
@@ -24,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedServer = "DTAC V2RAY"
     private var selectedServerType = "vless"
     private var selectedServerConfig = ""
+
     private var connected = false
 
     private var servers = arrayOf(
@@ -51,6 +56,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     companion object {
+
         private const val VPN_REQUEST_CODE = 100
 
         private const val CONFIG_URL =
@@ -61,84 +67,297 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_SERVERS = "servers"
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    private val vpnStatusReceiver = object : BroadcastReceiver() {
+
+        override fun onReceive(
+            context: Context?,
+            intent: Intent?
+        ) {
+
+            if (intent == null) {
+                return
+            }
+
+            val status =
+                intent.getStringExtra(
+                    MyVpnService.EXTRA_VPN_STATUS
+                ) ?: return
+
+            val error =
+                intent.getStringExtra(
+                    MyVpnService.EXTRA_VPN_ERROR
+                )
+
+            when (status) {
+
+                MyVpnService.VPN_STATUS_CONNECTING -> {
+
+                    connected = false
+
+                    statusText.text =
+                        "● CONNECTING..."
+
+                    statusText.setTextColor(
+                        Color.YELLOW
+                    )
+
+                    connectText.text =
+                        "CONNECTING..."
+                }
+
+                MyVpnService.VPN_STATUS_CONNECTED -> {
+
+                    connected = true
+
+                    statusText.text =
+                        "● CONNECTED"
+
+                    statusText.setTextColor(
+                        Color.GREEN
+                    )
+
+                    connectText.text =
+                        "DISCONNECT"
+                }
+
+                MyVpnService.VPN_STATUS_DISCONNECTED -> {
+
+                    connected = false
+
+                    statusText.text =
+                        "● DISCONNECTED"
+
+                    statusText.setTextColor(
+                        Color.LTGRAY
+                    )
+
+                    connectText.text =
+                        "CONNECT"
+                }
+
+                MyVpnService.VPN_STATUS_ERROR -> {
+
+                    connected = false
+
+                    statusText.text =
+                        "● ERROR"
+
+                    statusText.setTextColor(
+                        Color.RED
+                    )
+
+                    connectText.text =
+                        "CONNECT"
+
+                    if (!error.isNullOrBlank()) {
+
+                        AlertDialog.Builder(
+                            this@MainActivity
+                        )
+                            .setTitle(
+                                "VPN ERROR"
+                            )
+                            .setMessage(error)
+                            .setPositiveButton(
+                                "OK",
+                                null
+                            )
+                            .show()
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
 
         buildUI()
+
+        registerVpnReceiver()
+
         checkOnlineConfig()
+    }
+
+    private fun registerVpnReceiver() {
+
+        val filter =
+            IntentFilter(
+                MyVpnService.ACTION_VPN_STATUS
+            )
+
+        if (Build.VERSION.SDK_INT >= 33) {
+
+            registerReceiver(
+                vpnStatusReceiver,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            )
+
+        } else {
+
+            @Suppress("DEPRECATION")
+            registerReceiver(
+                vpnStatusReceiver,
+                filter
+            )
+        }
+    }
+
+    override fun onDestroy() {
+
+        try {
+            unregisterReceiver(
+                vpnStatusReceiver
+            )
+        } catch (_: Exception) {
+        }
+
+        super.onDestroy()
     }
 
     private fun buildUI() {
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(32, 32, 32, 32)
-            setBackgroundColor(
-                Color.rgb(16, 20, 38)
-            )
-        }
+        val root =
+            LinearLayout(this).apply {
 
-        val title = TextView(this).apply {
-            text = "KMTH VPN"
-            textSize = 34f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        }
+                orientation =
+                    LinearLayout.VERTICAL
 
-        val subtitle = TextView(this).apply {
-            text = "Open Source VPN"
-            textSize = 18f
-            setTextColor(Color.LTGRAY)
-            gravity = Gravity.CENTER
-        }
+                gravity =
+                    Gravity.CENTER
 
-        serverText = TextView(this).apply {
-            text = "🇹🇭  $selectedServer"
-            textSize = 21f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(
-                20,
-                30,
-                20,
-                30
-            )
+                setPadding(
+                    32,
+                    32,
+                    32,
+                    32
+                )
 
-            setOnClickListener {
-                showServerSelector()
+                setBackgroundColor(
+                    Color.rgb(
+                        16,
+                        20,
+                        38
+                    )
+                )
             }
-        }
 
-        statusText = TextView(this).apply {
-            text = "● DISCONNECTED"
-            textSize = 16f
-            setTextColor(Color.LTGRAY)
-            gravity = Gravity.CENTER
-            setPadding(
-                10,
-                10,
-                10,
-                20
-            )
-        }
+        val title =
+            TextView(this).apply {
 
-        connectText = TextView(this).apply {
-            text = "CONNECT"
-            textSize = 23f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(
-                40,
-                25,
-                40,
-                25
-            )
+                text =
+                    "KMTH VPN"
 
-            setOnClickListener {
-                toggleConnection()
+                textSize =
+                    34f
+
+                setTextColor(
+                    Color.WHITE
+                )
+
+                gravity =
+                    Gravity.CENTER
             }
-        }
+
+        val subtitle =
+            TextView(this).apply {
+
+                text =
+                    "Open Source VPN"
+
+                textSize =
+                    18f
+
+                setTextColor(
+                    Color.LTGRAY
+                )
+
+                gravity =
+                    Gravity.CENTER
+            }
+
+        serverText =
+            TextView(this).apply {
+
+                text =
+                    "🇹🇭  $selectedServer"
+
+                textSize =
+                    21f
+
+                setTextColor(
+                    Color.WHITE
+                )
+
+                gravity =
+                    Gravity.CENTER
+
+                setPadding(
+                    20,
+                    30,
+                    20,
+                    30
+                )
+
+                setOnClickListener {
+                    showServerSelector()
+                }
+            }
+
+        statusText =
+            TextView(this).apply {
+
+                text =
+                    "● DISCONNECTED"
+
+                textSize =
+                    16f
+
+                setTextColor(
+                    Color.LTGRAY
+                )
+
+                gravity =
+                    Gravity.CENTER
+
+                setPadding(
+                    10,
+                    10,
+                    10,
+                    20
+                )
+            }
+
+        connectText =
+            TextView(this).apply {
+
+                text =
+                    "CONNECT"
+
+                textSize =
+                    23f
+
+                setTextColor(
+                    Color.WHITE
+                )
+
+                gravity =
+                    Gravity.CENTER
+
+                setPadding(
+                    40,
+                    25,
+                    40,
+                    25
+                )
+
+                setOnClickListener {
+                    toggleConnection()
+                }
+            }
 
         root.addView(title)
         root.addView(subtitle)
@@ -152,25 +371,37 @@ class MainActivity : AppCompatActivity() {
     private fun showServerSelector() {
 
         AlertDialog.Builder(this)
-            .setTitle("SELECT SERVER")
+
+            .setTitle(
+                "SELECT SERVER"
+            )
+
             .setSingleChoiceItems(
                 servers,
                 servers.indexOfFirst {
-                    it.contains(selectedServer)
+                    it.contains(
+                        selectedServer
+                    )
                 }
             ) { dialog, which ->
 
                 selectedServer =
                     servers[which]
-                        .removePrefix("🇹🇭 ")
+                        .removePrefix(
+                            "🇹🇭 "
+                        )
 
                 selectedServerType =
-                    serverTypes.getOrElse(which) {
+                    serverTypes.getOrElse(
+                        which
+                    ) {
                         ""
                     }
 
                 selectedServerConfig =
-                    serverConfigs.getOrElse(which) {
+                    serverConfigs.getOrElse(
+                        which
+                    ) {
                         ""
                     }
 
@@ -179,18 +410,23 @@ class MainActivity : AppCompatActivity() {
 
                 dialog.dismiss()
             }
+
             .setNegativeButton(
                 "CANCEL",
                 null
             )
+
             .show()
     }
 
     private fun toggleConnection() {
 
         if (connected) {
+
             disconnectVpn()
+
         } else {
+
             requestVpnPermission()
         }
     }
@@ -199,32 +435,31 @@ class MainActivity : AppCompatActivity() {
 
         if (
             selectedServerConfig.isBlank() ||
-            selectedServerConfig == "YOUR_VLESS_CONFIG" ||
-            selectedServerConfig == "YOUR_SSH_CONFIG"
+            selectedServerConfig ==
+            "YOUR_VLESS_CONFIG" ||
+            selectedServerConfig ==
+            "YOUR_SSH_CONFIG"
         ) {
 
             AlertDialog.Builder(this)
+
                 .setTitle(
                     "SERVER CONFIG MISSING"
                 )
+
                 .setMessage(
                     "The selected server does not have a real configuration yet."
                 )
+
                 .setPositiveButton(
                     "OK",
                     null
                 )
+
                 .show()
 
             return
         }
-
-        /*
-         * Do not block ssh_ws here.
-         *
-         * The actual server-type handling
-         * will be done inside MyVpnService.
-         */
 
         val intent =
             VpnService.prepare(this)
@@ -268,12 +503,7 @@ class MainActivity : AppCompatActivity() {
 
         startService(intent)
 
-        /*
-         * Do NOT set connected = true here.
-         *
-         * The VPN service must first confirm
-         * that the actual tunnel has started.
-         */
+        connected = false
 
         statusText.text =
             "● CONNECTING..."
@@ -281,6 +511,9 @@ class MainActivity : AppCompatActivity() {
         statusText.setTextColor(
             Color.YELLOW
         )
+
+        connectText.text =
+            "CONNECTING..."
     }
 
     private fun disconnectVpn() {
@@ -338,10 +571,14 @@ class MainActivity : AppCompatActivity() {
                             }
 
                     val json =
-                        JSONObject(jsonText)
+                        JSONObject(
+                            jsonText
+                        )
 
                     val onlineVersion =
-                        json.getInt("version")
+                        json.getInt(
+                            "version"
+                        )
 
                     val prefs =
                         getSharedPreferences(
@@ -371,6 +608,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
 
                         runOnUiThread {
+
                             loadSavedConfig()
                         }
                     }
@@ -400,13 +638,16 @@ class MainActivity : AppCompatActivity() {
     ) {
 
         AlertDialog.Builder(this)
+
             .setTitle(
                 "🔄 UPDATE AVAILABLE"
             )
+
             .setMessage(
                 "New server configuration is available.\n\n" +
                     "Version: $newVersion"
             )
+
             .setPositiveButton(
                 "UPDATE NOW"
             ) { _, _ ->
@@ -416,10 +657,12 @@ class MainActivity : AppCompatActivity() {
                     newVersion
                 )
             }
+
             .setNegativeButton(
                 "LATER",
                 null
             )
+
             .show()
     }
 
@@ -455,16 +698,20 @@ class MainActivity : AppCompatActivity() {
                 .apply()
 
             AlertDialog.Builder(this)
+
                 .setTitle(
                     "✅ UPDATED"
                 )
+
                 .setMessage(
                     "Server configuration updated successfully."
                 )
+
                 .setPositiveButton(
                     "OK",
                     null
                 )
+
                 .show()
 
         } catch (e: Exception) {
@@ -476,16 +723,20 @@ class MainActivity : AppCompatActivity() {
             )
 
             AlertDialog.Builder(this)
+
                 .setTitle(
                     "Update Failed"
                 )
+
                 .setMessage(
                     "Could not update server configuration."
                 )
+
                 .setPositiveButton(
                     "OK",
                     null
                 )
+
                 .show()
         }
     }
@@ -546,7 +797,9 @@ class MainActivity : AppCompatActivity() {
 
         selectedServer =
             servers[0]
-                .removePrefix("🇹🇭 ")
+                .removePrefix(
+                    "🇹🇭 "
+                )
 
         selectedServerType =
             serverTypes[0]
