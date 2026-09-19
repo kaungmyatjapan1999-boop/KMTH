@@ -12,7 +12,6 @@ import org.json.JSONObject
 class MyVpnService : VpnService() {
 
     private var vpnInterface: ParcelFileDescriptor? = null
-
     private var xrayStarted = false
     private var lastStatusWasError = false
 
@@ -43,41 +42,38 @@ class MyVpnService : VpnService() {
         const val VPN_STATUS_ERROR =
             "error"
 
-        private const val TAG = "KMTH_XRAY"
+        private const val TAG = "KMTH_VPN"
     }
 
-    /*
-     * Protect Xray's own outbound sockets
-     * from being routed back into the VPN tunnel.
-     */
-    private val dialerController = object : DialerController {
+    private val dialerController =
+        object : DialerController {
 
-        override fun protectFd(fd: Long): Boolean {
+            override fun protectFd(fd: Long): Boolean {
 
-            return try {
+                return try {
 
-                val result =
-                    protect(fd.toInt())
+                    val result =
+                        protect(fd.toInt())
 
-                Log.d(
-                    TAG,
-                    "protectFd($fd) = $result"
-                )
+                    Log.d(
+                        TAG,
+                        "protectFd($fd) = $result"
+                    )
 
-                result
+                    result
 
-            } catch (e: Exception) {
+                } catch (e: Exception) {
 
-                Log.e(
-                    TAG,
-                    "protectFd exception",
-                    e
-                )
+                    Log.e(
+                        TAG,
+                        "protectFd failed",
+                        e
+                    )
 
-                false
+                    false
+                }
             }
         }
-    }
 
     override fun onStartCommand(
         intent: Intent?,
@@ -112,12 +108,22 @@ class MyVpnService : VpnService() {
 
         Log.d(
             TAG,
-            "Starting server: $serverName"
+            "================================"
         )
 
         Log.d(
             TAG,
-            "Server type: $serverType"
+            "SERVER: $serverName"
+        )
+
+        Log.d(
+            TAG,
+            "TYPE: $serverType"
+        )
+
+        Log.d(
+            TAG,
+            "================================"
         )
 
         lastStatusWasError = false
@@ -126,18 +132,63 @@ class MyVpnService : VpnService() {
             VPN_STATUS_CONNECTING
         )
 
+        if (serverConfig.isBlank()) {
+
+            failVpn(
+                "Server configuration is empty"
+            )
+
+            return START_NOT_STICKY
+        }
+
         try {
 
             /*
-             * Register Android socket protection
-             * before starting Xray.
+             * SSH_WS is NOT supported by
+             * libXray share-link conversion.
+             *
+             * Do not send ssh:// into
+             * convertShareLinksToXrayJson().
+             */
+            if (
+                serverType.equals(
+                    "ssh_ws",
+                    ignoreCase = true
+                )
+            ) {
+
+                failVpn(
+                    "SSH_WS transport is not enabled yet. " +
+                        "VLESS path is ready, but the custom SSH_WS " +
+                        "HTTP/WebSocket handshake still needs its own client."
+                )
+
+                return START_NOT_STICKY
+            }
+
+            if (
+                !serverType.equals(
+                    "vless",
+                    ignoreCase = true
+                )
+            ) {
+
+                failVpn(
+                    "Unsupported server type: $serverType"
+                )
+
+                return START_NOT_STICKY
+            }
+
+            /*
+             * Register socket protection.
              */
             libXray.LibXray.registerDialerController(
                 dialerController
             )
 
             /*
-             * Configure Xray DNS.
+             * Configure DNS.
              */
             libXray.LibXray.setDNS(
                 dialerController,
@@ -146,18 +197,14 @@ class MyVpnService : VpnService() {
 
             Log.d(
                 TAG,
-                "libXray DialerController registered"
-            )
-
-            Log.d(
-                TAG,
-                "libXray DNS configured"
+                "libXray initialized"
             )
 
             /*
-             * Create Android VPN/TUN interface.
+             * Establish Android VPN interface.
              */
-            val builder = Builder()
+            val builder =
+                Builder()
 
             builder
                 .setSession(
@@ -178,7 +225,7 @@ class MyVpnService : VpnService() {
             if (vpnInterface == null) {
 
                 failVpn(
-                    "Could not establish Android VPN interface"
+                    "Android VPN interface could not be established"
                 )
 
                 return START_NOT_STICKY
@@ -186,13 +233,10 @@ class MyVpnService : VpnService() {
 
             Log.d(
                 TAG,
-                "Android VPN interface established"
+                "Android TUN established"
             )
 
-            /*
-             * Start Xray using the TUN file descriptor.
-             */
-            startXray(
+            startVlessXray(
                 serverConfig
             )
 
@@ -202,7 +246,7 @@ class MyVpnService : VpnService() {
 
             Log.e(
                 TAG,
-                "VPN startup exception",
+                "VPN startup failed",
                 e
             )
 
@@ -215,7 +259,7 @@ class MyVpnService : VpnService() {
         }
     }
 
-    private fun startXray(
+    private fun startVlessXray(
         serverConfig: String
     ) {
 
@@ -225,7 +269,7 @@ class MyVpnService : VpnService() {
         if (tunFd == null) {
 
             failVpn(
-                "VPN TUN file descriptor is unavailable"
+                "TUN file descriptor is unavailable"
             )
 
             return
@@ -237,13 +281,9 @@ class MyVpnService : VpnService() {
 
                 Log.d(
                     TAG,
-                    "Starting VLESS conversion..."
+                    "Converting VLESS share link..."
                 )
 
-                /*
-                 * Convert the Xray share link
-                 * into Xray outbound JSON.
-                 */
                 val convertRequest =
                     JSONObject().apply {
 
@@ -276,7 +316,7 @@ class MyVpnService : VpnService() {
 
                 Log.d(
                     TAG,
-                    "Share-link conversion response received"
+                    "libXray conversion response received"
                 )
 
                 val convertJson =
@@ -294,15 +334,12 @@ class MyVpnService : VpnService() {
                     val error =
                         convertJson.optString(
                             "error",
-                            "Share-link conversion failed"
+                            "VLESS conversion failed"
                         )
 
-                    Log.e(
-                        TAG,
-                        "Share-link conversion failed: $error"
+                    failVpn(
+                        error
                     )
-
-                    failVpn(error)
 
                     return@Thread
                 }
@@ -312,18 +349,18 @@ class MyVpnService : VpnService() {
                         "data"
                     )
 
-                val sourceOutbounds =
+                val outbounds =
                     data?.optJSONArray(
                         "outbounds"
                     )
 
                 if (
-                    sourceOutbounds == null ||
-                    sourceOutbounds.length() == 0
+                    outbounds == null ||
+                    outbounds.length() == 0
                 ) {
 
                     failVpn(
-                        "Share-link conversion returned no outbound"
+                        "VLESS conversion returned no outbound"
                     )
 
                     return@Thread
@@ -331,85 +368,93 @@ class MyVpnService : VpnService() {
 
                 Log.d(
                     TAG,
-                    "Outbound count: ${sourceOutbounds.length()}"
+                    "Converted outbounds: ${outbounds.length()}"
                 )
 
                 /*
                  * Build Xray configuration.
+                 *
+                 * xray.tun.fd must be inside
+                 * the root env object.
                  */
                 val xrayConfig =
-                    JSONObject()
-
-                /*
-                 * Pass Android TUN FD to Xray.
-                 */
-                xrayConfig.put(
-                    "env",
                     JSONObject().apply {
 
                         put(
-                            "xray.tun.fd",
-                            tunFd
-                        )
-                    }
-                )
-
-                /*
-                 * Xray TUN inbound.
-                 */
-                xrayConfig.put(
-                    "inbounds",
-                    JSONArray().apply {
-
-                        put(
+                            "env",
                             JSONObject().apply {
 
                                 put(
-                                    "tag",
-                                    "kmth-tun"
+                                    "xray.tun.fd",
+                                    tunFd
                                 )
+                            }
+                        )
+
+                        put(
+                            "inbounds",
+                            JSONArray().apply {
 
                                 put(
-                                    "protocol",
-                                    "tun"
-                                )
-
-                                put(
-                                    "settings",
                                     JSONObject().apply {
 
                                         put(
-                                            "name",
+                                            "tag",
                                             "kmth-tun"
                                         )
 
                                         put(
-                                            "mtu",
-                                            1500
+                                            "protocol",
+                                            "tun"
+                                        )
+
+                                        put(
+                                            "settings",
+                                            JSONObject().apply {
+
+                                                put(
+                                                    "name",
+                                                    "kmth-tun"
+                                                )
+
+                                                put(
+                                                    "mtu",
+                                                    1500
+                                                )
+                                            }
                                         )
                                     }
                                 )
                             }
                         )
-                    }
-                )
 
-                /*
-                 * Use converted outbound(s).
-                 */
-                xrayConfig.put(
-                    "outbounds",
-                    sourceOutbounds
-                )
+                        put(
+                            "outbounds",
+                            outbounds
+                        )
+
+                        put(
+                            "routing",
+                            JSONObject().apply {
+
+                                put(
+                                    "domainStrategy",
+                                    "AsIs"
+                                )
+
+                                put(
+                                    "rules",
+                                    JSONArray()
+                                )
+                            }
+                        )
+                    }
 
                 Log.d(
                     TAG,
-                    "Xray configuration created"
+                    "Xray config prepared"
                 )
 
-                /*
-                 * Start Xray.
-                 */
                 val runRequest =
                     JSONObject().apply {
 
@@ -437,7 +482,7 @@ class MyVpnService : VpnService() {
 
                 Log.d(
                     TAG,
-                    "Calling libXray.runXray..."
+                    "Starting libXray..."
                 )
 
                 val runResult =
@@ -445,45 +490,22 @@ class MyVpnService : VpnService() {
                         runRequest.toString()
                     )
 
+                Log.d(
+                    TAG,
+                    "runXray response received"
+                )
+
                 val runJson =
                     JSONObject(
                         runResult
                     )
 
                 if (
-                    runJson.optBoolean(
+                    !runJson.optBoolean(
                         "success",
                         false
                     )
                 ) {
-
-                    xrayStarted = true
-                    lastStatusWasError = false
-
-                    Log.d(
-                        TAG,
-                        "================================"
-                    )
-
-                    Log.d(
-                        TAG,
-                        "XRAY STARTED SUCCESSFULLY"
-                    )
-
-                    Log.d(
-                        TAG,
-                        "================================"
-                    )
-
-                    /*
-                     * IMPORTANT:
-                     * Only now report CONNECTED.
-                     */
-                    sendVpnStatus(
-                        VPN_STATUS_CONNECTED
-                    )
-
-                } else {
 
                     val error =
                         runJson.optString(
@@ -491,34 +513,52 @@ class MyVpnService : VpnService() {
                             "Xray failed to start"
                         )
 
-                    Log.e(
-                        TAG,
-                        "Xray start failed: $error"
+                    failVpn(
+                        error
                     )
 
-                    failVpn(error)
+                    return@Thread
                 }
+
+                xrayStarted = true
+                lastStatusWasError = false
+
+                Log.d(
+                    TAG,
+                    "================================"
+                )
+
+                Log.d(
+                    TAG,
+                    "KMTH VLESS VPN CONNECTED"
+                )
+
+                Log.d(
+                    TAG,
+                    "================================"
+                )
+
+                sendVpnStatus(
+                    VPN_STATUS_CONNECTED
+                )
 
             } catch (e: Exception) {
 
                 Log.e(
                     TAG,
-                    "Xray start exception",
+                    "VLESS Xray exception",
                     e
                 )
 
                 failVpn(
                     e.message
-                        ?: "Xray start exception"
+                        ?: "VLESS Xray startup failed"
                 )
             }
 
         }.start()
     }
 
-    /*
-     * Send VPN state to MainActivity.
-     */
     private fun sendVpnStatus(
         status: String,
         error: String? = null
@@ -540,7 +580,9 @@ class MyVpnService : VpnService() {
                         status
                     )
 
-                    if (!error.isNullOrBlank()) {
+                    if (
+                        !error.isNullOrBlank()
+                    ) {
 
                         putExtra(
                             EXTRA_VPN_ERROR,
@@ -549,29 +591,33 @@ class MyVpnService : VpnService() {
                     }
                 }
 
-            sendBroadcast(intent)
+            sendBroadcast(
+                intent
+            )
 
             Log.d(
                 TAG,
-                "VPN status sent: $status"
+                "STATUS: $status"
             )
 
         } catch (e: Exception) {
 
             Log.e(
                 TAG,
-                "Could not send VPN status",
+                "Status broadcast failed",
                 e
             )
         }
     }
 
-    /*
-     * Report an error and stop the service.
-     */
     private fun failVpn(
         error: String
     ) {
+
+        Log.e(
+            TAG,
+            "VPN ERROR: $error"
+        )
 
         lastStatusWasError = true
 
@@ -587,14 +633,14 @@ class MyVpnService : VpnService() {
 
         Log.d(
             TAG,
-            "Stopping KMTH VPN..."
+            "Stopping KMTH VPN"
         )
 
         try {
 
             if (xrayStarted) {
 
-                val request =
+                val stopRequest =
                     JSONObject().apply {
 
                         put(
@@ -614,7 +660,7 @@ class MyVpnService : VpnService() {
                     }
 
                 libXray.LibXray.invoke(
-                    request.toString()
+                    stopRequest.toString()
                 )
 
                 xrayStarted = false
@@ -634,17 +680,9 @@ class MyVpnService : VpnService() {
             )
         }
 
-        /*
-         * Reset libXray DNS configuration.
-         */
         try {
 
             libXray.LibXray.resetDNS()
-
-            Log.d(
-                TAG,
-                "libXray DNS reset"
-            )
 
         } catch (e: Exception) {
 
@@ -655,9 +693,6 @@ class MyVpnService : VpnService() {
             )
         }
 
-        /*
-         * Close Android TUN interface.
-         */
         try {
 
             vpnInterface?.close()
@@ -666,17 +701,13 @@ class MyVpnService : VpnService() {
 
             Log.e(
                 TAG,
-                "VPN interface close failed",
+                "TUN close failed",
                 e
             )
         }
 
         vpnInterface = null
 
-        /*
-         * Only report DISCONNECTED when this
-         * was not an error shutdown.
-         */
         if (!lastStatusWasError) {
 
             sendVpnStatus(
